@@ -1,0 +1,42 @@
+name: gate
+
+# Runs on every pull request. This is the job whose name becomes the required status
+# check, so the string "gate / run" has to match what branch protection asks for.
+on:
+  pull_request:
+    branches: [main]
+  # push to main is included so the check has a baseline on the default branch. Without
+  # it, the first pull request has nothing to compare against and some settings refuse
+  # to offer the check as required.
+  push:
+    branches: [main]
+
+# Cancel a superseded run when a branch is pushed again. Several agents pushing to the
+# same branch would otherwise queue full-length runs nobody reads.
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # The real gate is 15 to 20 minutes. This stops a hung run consuming the monthly
+    # allowance, which a 360 minute default would happily do.
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The real gate needs no credentials, which is why this job has none and why a
+      # hosted runner is enough. Keep it that way: the moment this needs a secret, the
+      # threat model changes.
+      - name: run the gate
+        env:
+          GATE_SECONDS: ${{ vars.GATE_SECONDS || '60' }}
+        run: python gate.py

@@ -1,0 +1,38 @@
+name: deploy
+
+# Stands in for `head_fluent --apply`, the step that writes to the ServiceNow instance.
+#
+# The point of this workflow is the `environment:` line. An environment with required
+# reviewers turns a deployment into something a named person approves, with the approval
+# recorded. Last night's install was refused by a local permission layer, which works for
+# one operator and leaves no record. This is the same refusal with an audit trail and
+# somebody's name against it.
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: 'What is being installed, in one line'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Create this environment in Settings, Environments, and add yourself as a required
+    # reviewer. The job will then pause here until it is approved, and the approval is
+    # recorded against the run.
+    environment: instance
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deliberately does nothing. What is under test is whether the approval gate holds,
+      # not what runs after it. Credentials belong here and nowhere else in this repo.
+      - name: pretend to install
+        run: |
+          echo "would install: ${{ inputs.what }}"
+          echo "approved by:   ${{ github.actor }}"
+          echo "no instance was contacted"
